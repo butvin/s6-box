@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+
+  nginx:
+    container_name: ${APP_NAME}-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    build:
+      args:
+        env: ${APP_ENV}
+      context: ./nginx
+      dockerfile: ./Dockerfile
+    restart: always
+
+  database:
+    container_name: ${APP_NAME}-database
+    image: mariadb:10.6.12
+    working_dir: ${WORK_DIRECTORY}
+    ports:
+      - "3315:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "--password=${MYSQL_PASSWORD}" ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    restart: always
+
+  php-fpm:
+    container_name: ${APP_NAME}-php-fpm
+    ports:
+      - "9000:9000"
+    build:
+      args:
+        env: ${APP_ENV}
+      context: ./php-fpm
+      dockerfile: ./Dockerfile
+    environment:
+      DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
+      PHP_IDE_CONFIG: ${PHP_IDE_CONFIG}
+    volumes:
+      - ~/.composer/docker-cache/:/root/.composer:cached
+      - ../:/application
+    restart: always
+
+  redis:
+    container_name: ${APP_NAME}-redis
+    image: redis:6.2.6
+    restart: always
+
+  zookeeper:
+    container_name: ${APP_NAME}-zookeeper
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    container_name: ${APP_NAME}-kafka
+    image: wurstmeister/kafka
+    ports:
+      - "${KAFKA_ADVERTISED_HOST_PORT}:${KAFKA_ADVERTISED_HOST_PORT}"
+    environment:
+      KAFKA_CLUSTERS_READONLY: ${KAFKA_CLUSTERS_READONLY}
+      KAFKA_ADVERTISED_HOST_NAME: ${KAFKA_ADVERTISED_HOST_NAME}
+      KAFKA_CREATE_TOPICS: ${KAFKA_CREATE_TOPICS}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
