@@ -29,12 +29,13 @@ services:
     ports:
       - "3315:3306"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: true
+#      DATABASE_URL: ${DATABASE_URL}
+#      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+#      MYSQL_USER: ${MYSQL_USER}
+#      MYSQL_DATABASE: ${MYSQL_DATABASE}
+#      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+#      DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
     volumes:
       - database_data:/var/lib/mysql/data:rw
       # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!

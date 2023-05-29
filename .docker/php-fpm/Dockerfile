@@ -34,6 +34,7 @@ RUN if [ "1" = "${XDEBUG_ENABLE}" ]; then \
     fi
 
 RUN docker-php-ext-install zip mysqli pdo pdo_mysql opcache
+RUN docker-php-ext-enable zip mysqli pdo pdo_mysql opcache
 
 # Redis
 RUN pecl install -o -f redis
