@@ -1,4 +1,8 @@
-version: '3.9'
+version: '3'
+#version: '3.9'
+
+volumes:
+  database_data:
 
 services:
 
@@ -21,10 +25,16 @@ services:
     ports:
       - "3315:3306"
     environment:
+      DATABASE_URL: ${DATABASE_URL}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
+    volumes:
+      - database_data:/var/lib/mysql/data:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "--password=${MYSQL_PASSWORD}" ]
       interval: 15s
@@ -35,10 +45,12 @@ services:
   php-fpm:
     container_name: ${APP_NAME}-php-fpm
     ports:
-      - "9000:9000"
+      - "${PHP_PORT}:${PHP_PORT}"
     build:
       args:
         env: ${APP_ENV}
+        XDEBUG_ENABLE: ${XDEBUG_ENABLE}
+        DOCKER_INTERNAL_HOST: ${DOCKER_INTERNAL_HOST}
       context: ./php-fpm
       dockerfile: ./Dockerfile
     environment:
@@ -58,7 +70,7 @@ services:
     container_name: ${APP_NAME}-zookeeper
     image: wurstmeister/zookeeper
     ports:
-      - "2181:2181"
+      - "${KAFKA_ZOOKEEPER_PORT}:${KAFKA_ZOOKEEPER_PORT}"
 
   kafka:
     container_name: ${APP_NAME}-kafka

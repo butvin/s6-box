@@ -10,7 +10,6 @@ RUN apt-get update --fix-missing \
         curl \
         wget \
         git \
-        librabbitmq-dev \
         libimage-exiftool-perl \
         libzip-dev \
         zip \
@@ -19,16 +18,20 @@ RUN apt-get update --fix-missing \
         sendmail \
     && rm -rf /var/lib/apt/lists/*
 
-# DEPENDENCIES
+# Dependen
 RUN apt-get update --fix-missing \
     && apt-get install -y python \
     && rm -rf /var/lib/apt/lists/*
 
+# xDebug
+ARG DOCKER_INTERNAL_HOST
+ARG XDEBUG_ENABLE=0
 
-
-## Amqp (rabbitMQ)
-#RUN pecl install amqp
-#RUN docker-php-ext-enable amqp
+RUN if [ "1" = "${XDEBUG_ENABLE}" ]; then \
+      pecl install xdebug \
+      && docker-php-ext-enable xdebug \
+      && echo "xdebug.remote_host=${DOCKER_INTERNAL_HOST}\n" >> "$PHP_INI_DIR"/conf.d/docker-php-ext-xdebug.ini; \
+    fi
 
 RUN docker-php-ext-install zip mysqli pdo pdo_mysql opcache
 
@@ -47,6 +50,7 @@ RUN sed -i '/#!\/bin\/sh/aservice sendmail restart' /usr/local/bin/docker-php-en
 RUN sed -i '/#!\/bin\/sh/aecho "$(hostname -i)\t$(hostname) $(hostname).localhost" >> /etc/hosts' /usr/local/bin/docker-php-entrypoint
 
 COPY www.conf /usr/local/etc/php-fpm.d
+
 COPY ${env}/opcache.ini "$PHP_INI_DIR"/conf.d
 COPY ${env}/php.ini "$PHP_INI_DIR"/conf.d
 COPY ${env}/xdebug.ini "$PHP_INI_DIR"/conf.d
