@@ -1,0 +1,124 @@
+version: '3'
+
+volumes:
+  database_data:
+  data01:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
+
+services:
+  nginx:
+    container_name: ${APP_NAME}-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    build:
+      args:
+        env: ${APP_ENV}
+      context: ./nginx
+      dockerfile: ./Dockerfile
+    restart: always
+
+  database:
+    container_name: ${APP_NAME}-database
+    image: mariadb:10.6.12
+    working_dir: ${WORK_DIRECTORY}
+    ports:
+      - "3315:3306"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
+    volumes:
+      - database_data:/var/lib/mysql/data:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "--password=${MYSQL_PASSWORD}" ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    restart: always
+
+  php-fpm:
+    container_name: ${APP_NAME}-php-fpm
+    ports:
+      - "${PHP_PORT}:${PHP_PORT}"
+    build:
+      args:
+        env: ${APP_ENV}
+        XDEBUG_ENABLE: ${XDEBUG_ENABLE}
+        DOCKER_INTERNAL_HOST: ${DOCKER_INTERNAL_HOST}
+      context: ./php-fpm
+      dockerfile: ./Dockerfile
+    environment:
+      DATABASE_TIMEZONE: ${DATABASE_TIMEZONE}
+      PHP_IDE_CONFIG: ${PHP_IDE_CONFIG}
+    volumes:
+      - ~/.composer/docker-cache/:/root/.composer:cached
+      - ../:/application
+    restart: always
+
+  redis:
+    container_name: ${APP_NAME}-redis
+    image: redis:6.2.6
+    restart: always
+
+  zookeeper:
+    container_name: ${APP_NAME}-zookeeper
+    image: wurstmeister/zookeeper
+    ports:
+      - "${KAFKA_ZOOKEEPER_PORT}:${KAFKA_ZOOKEEPER_PORT}"
+
+  kafka:
+    container_name: ${APP_NAME}-kafka
+    image: wurstmeister/kafka
+    ports:
+      - "${KAFKA_ADVERTISED_HOST_PORT}:${KAFKA_ADVERTISED_HOST_PORT}"
+    environment:
+      KAFKA_CLUSTERS_READONLY: ${KAFKA_CLUSTERS_READONLY}
+      KAFKA_ADVERTISED_HOST_NAME: ${KAFKA_ADVERTISED_HOST_NAME}
+      KAFKA_CREATE_TOPICS: ${KAFKA_CREATE_TOPICS}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+
+  es01:
+    container_name: ${APP_NAME}-es01
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    build:
+      context: .
+      dockerfile: ./elasticsearch/Dockerfile
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+        - data01:/usr/share/elasticsearch/data
+    ports:
+        - "9200:9200"
+    networks:
+        - elastic
+
+  kibana:
+    container_name: ${APP_NAME}-kibana
+    image: docker.elastic.co/kibana/kibana:7.9.1
+    links:
+      - es01
+    ports:
+      - "5601:5601"
