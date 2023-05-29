@@ -1,11 +1,15 @@
 version: '3'
-#version: '3.9'
 
 volumes:
   database_data:
+  data01:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
 
 services:
-
   nginx:
     container_name: ${APP_NAME}-nginx
     ports:
@@ -85,3 +89,36 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: always
+
+  es01:
+    container_name: ${APP_NAME}-es01
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    build:
+      context: .
+      dockerfile: ./elasticsearch/Dockerfile
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+        - data01:/usr/share/elasticsearch/data
+    ports:
+        - "9200:9200"
+    networks:
+        - elastic
+
+  kibana:
+    container_name: ${APP_NAME}-kibana
+    image: docker.elastic.co/kibana/kibana:7.9.1
+    links:
+      - es01
+    ports:
+      - "5601:5601"
